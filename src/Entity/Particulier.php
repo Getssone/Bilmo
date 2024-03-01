@@ -5,6 +5,7 @@ namespace App\Entity;
 use App\Repository\ParticulierRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use JMS\Serializer\Annotation\Groups;
 use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: ParticulierRepository::class)]
@@ -13,26 +14,33 @@ class Particulier
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(["getUsers"])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(["getUsers"])]
     private ?string $firstName = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(["getUsers"])]
     private ?string $lastName = null;
 
     #[ORM\Column(type: Types::DATE_MUTABLE, nullable: true)]
+    #[Groups(["getUsers"])]
     private ?\DateTimeInterface $birthday = null;
 
 
     #[ORM\Column(type: "string", length: 10)]
+    #[Groups(["getUsers"])]
     #[Assert\Choice(callback: 'getGenderChoices')]
     protected string $gender;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(["getUsers"])]
     private ?string $job = null;
 
     #[ORM\ManyToOne(inversedBy: 'ClientsParticulier')]
+    #[Groups(["getUsers"])]
     private ?Client $client = null;
 
     const GENDER_MALE = 'Masculin';

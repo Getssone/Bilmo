@@ -6,6 +6,7 @@ use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use JMS\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
@@ -13,33 +14,41 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(["getUsers"])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180, unique: true)]
+    #[Groups(["getUsers"])]
     private ?string $email = null;
 
     /**
      * @var string The hashed password
      */
     #[ORM\Column]
+    #[Groups(["getUsers"])]
     private ?string $password = null;
 
     /**
      * @var list<string> The user roles
      */
     #[ORM\Column]
+    #[Groups(["getUsers"])]
     private array $roles = [];
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(["getUsers"])]
     private ?string $address = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(["getUsers"])]
     private ?string $phone = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(["getUsers"])]
     private ?string $avatar = null;
 
     #[ORM\Column]
+    #[Groups(["getUsers"])]
     private ?bool $isVerified = null;
 
 
@@ -68,11 +77,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function getUserIdentifier(): string
     {
-        return (string) $this->email;
+        return $this->email;
     }
 
     /**
-     * Méthode getUsername qui permet de retourner le champ qui est utilisé pour l'authentification.
+     * Méthode getUsersname qui permet de retourner le champ qui est utilisé pour l'authentification.
      *
      * @return string
      */

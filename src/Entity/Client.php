@@ -7,6 +7,7 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use JMS\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: ClientsRepository::class)]
 class Client
@@ -14,21 +15,27 @@ class Client
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(["getUsers"])]
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(["getUsers"])]
     private ?string $name = null;
 
     #[ORM\Column(type: Types::STRING, nullable: true)]
+    #[Groups(["getUsers"])]
     private ?string $siret = null;
 
     #[ORM\Column(length: 255)]
+    #[Groups(["getUsers"])]
     private ?string $business = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(["getUsers"])]
     private ?string $webSite = null;
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(["getUsers"])]
     private ?string $legalStatus = null;
 
     #[ORM\OneToMany(targetEntity: Particulier::class, mappedBy: 'client')]
