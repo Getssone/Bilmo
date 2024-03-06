@@ -6,6 +6,8 @@ use App\Repository\UserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
+use JMS\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 class User implements UserInterface, PasswordAuthenticatedUserInterface
@@ -13,33 +15,53 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
+    #[Groups(["getUsers"])]
     private ?int $id = null;
 
     #[ORM\Column(length: 180, unique: true)]
-    private ?string $email = null;
+    #[Groups(["getUsers"])]
+    #[Assert\NotBlank(message: "L'email est obligatoire")]
+    #[Assert\Email(message: "L'email n'est pas valide")]
+    private string $email;
 
     /**
      * @var string The hashed password
      */
     #[ORM\Column]
-    private ?string $password = null;
+    #[Groups(["getUsers"])]
+    #[Assert\NotBlank(message: "Le mot de passe est obligatoire")]
+    #[Assert\Length(min: 8, minMessage: "Le mot de passe doit faire au moins {{ limit }} caractères")]
+    private string $password;
 
     /**
      * @var list<string> The user roles
      */
     #[ORM\Column]
+    #[Groups(["getUsers"])]
+    #[Assert\NotBlank(message: "Les rôles sont obligatoires")]
     private array $roles = [];
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(["getUsers"])]
+    #[Assert\Length(max: 255, maxMessage: "L'adresse ne peut pas faire plus de {{ limit }} caractères")]
     private ?string $address = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $phone = null;
+    #[Groups(["getUsers"])]
+    #[Assert\NotBlank(message: "Le téléphone est obligatoire")]
+    #[Assert\Length(min: 10, minMessage: "Le téléphone doit faire au moins {{ limit }} caractères")]
+    #[Assert\Regex(pattern: "/^[0-9]+$/", message: "Le téléphone ne doit contenir que des chiffres")]
+    private string $phone;
+
 
     #[ORM\Column(length: 255, nullable: true)]
+    #[Groups(["getUsers"])]
+    #[Assert\Length(max: 255, maxMessage: "L'avatar ne peut pas faire plus de {{ limit }} caractères")]
     private ?string $avatar = null;
 
     #[ORM\Column]
+    #[Groups(["getUsers"])]
+    #[Assert\Type(type: "bool", message: "La valeur de 'isVerified' doit être un booléen")]
     private ?bool $isVerified = null;
 
 
@@ -68,11 +90,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
      */
     public function getUserIdentifier(): string
     {
-        return (string) $this->email;
+        return $this->email;
     }
 
     /**
-     * Méthode getUsername qui permet de retourner le champ qui est utilisé pour l'authentification.
+     * Méthode getUsersname qui permet de retourner le champ qui est utilisé pour l'authentification.
      *
      * @return string
      */

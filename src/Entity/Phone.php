@@ -5,6 +5,8 @@ namespace App\Entity;
 use App\Repository\PhoneRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use JMS\Serializer\Annotation\Groups;
+use Symfony\Component\Validator\Constraints as Assert;
 
 #[ORM\Entity(repositoryClass: PhoneRepository::class)]
 class Phone
@@ -15,22 +17,37 @@ class Phone
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    private ?string $type = null;
+    #[Assert\NotBlank('le type est obligatoire')]
+    #[Assert\Length(min: 1, max: 255, minMessage: 'Le type doit faire au moins {{limit}} caractères', maxMessage: "Le type ne peut pas faire plus de {{ limit }} caractères")]
+    #[Assert\Regex(pattern: "/^[a-zA-Z\s]+$/", message: "Le type ne doit contenir que des lettres et des espaces")]
+    private string $type;
 
     #[ORM\Column(length: 255)]
-    private ?string $brand = null;
+    #[Assert\NotBlank(message: "La marque est obligatoire")]
+    #[Assert\Length(min: 1, max: 255, minMessage: "La marque doit faire au moins {{ limit }} caractères", maxMessage: "La marque ne peut pas faire plus de {{ limit }} caractères")]
+    #[Assert\Regex(pattern: "/^[a-zA-Z\s]+$/", message: "La marque ne doit contenir que des lettres et des espaces")]
+    private string $brand;
 
     #[ORM\Column(length: 255)]
-    private ?string $model = null;
+    #[Assert\NotBlank(message: "Le modèle est obligatoire")]
+    #[Assert\Length(min: 1, max: 255, minMessage: "Le modèle doit faire au moins {{ limit }} caractères", maxMessage: "Le modèle ne peut pas faire plus de {{ limit }} caractères")]
+    #[Assert\Regex(pattern: "/^[a-zA-Z0-9\s]+$/", message: "Le modèle ne doit contenir que des lettres, des chiffres et des espaces")]
+    private string $model;
 
-    #[ORM\Column()]
-    private ?int $price = null;
+    #[ORM\Column]
+    #[Assert\NotBlank(message: "Le prix est obligatoire")]
+    #[Assert\Range(min: 0, max: 999999, minMessage: "Le prix doit être supérieur ou égal à {{ limit }}", maxMessage: "Le prix ne peut pas être supérieur à {{ limit }}")]
+    private int $price;
+
+
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
+    #[Assert\Length(min: 0, max: 60000, minMessage: "La description doit faire au moins {{ limit }} caractères", maxMessage: "La description ne peut pas faire plus de {{ limit }} caractères")]
     private ?string $description = null;
 
     #[ORM\Column]
-    private ?int $stock = null;
+    #[Assert\Range(min: 0, max: 999999, minMessage: "Le stock doit être supérieur ou égal à {{ limit }}", maxMessage: "Le stock ne peut pas être supérieur à {{ limit }}")]
+    private ?int $stock = 0;
 
     public function getId(): ?int
     {
