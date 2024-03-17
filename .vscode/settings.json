@@ -1,3 +1,23 @@
 {
-  "cSpell.words": ["Oppo"]
+  "cSpell.words": [
+    "EIRL",
+    "EURL",
+    "Hasher",
+    "lexik",
+    "Oppo",
+    "SASU",
+    "Symfony",
+    "Usersname"
+  ],
+  "workbench.colorCustomizations": {
+    "commandCenter.border": "#e7e7e799",
+    "sash.hoverBorder": "#4b715b",
+    "tab.activeBorder": "#4b715b",
+    "titleBar.activeBackground": "#233329",
+    "titleBar.activeForeground": "#e7e7e7",
+    "titleBar.border": "#233329",
+    "titleBar.inactiveBackground": "#23332999",
+    "titleBar.inactiveForeground": "#e7e7e799"
+  },
+  "peacock.color": "#375242"
 }
