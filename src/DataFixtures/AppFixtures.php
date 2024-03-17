@@ -9,9 +9,16 @@ use App\Entity\User;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Persistence\ObjectManager;
 use Faker\Factory;
+use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 
 class AppFixtures extends Fixture
 {
+    private $userPasswordHasher;
+
+    public function __construct(UserPasswordHasherInterface $userPasswordHasher)
+    {
+        $this->userPasswordHasher = $userPasswordHasher;
+    }
 
     public function load(ObjectManager $manager)
     {
@@ -87,10 +94,6 @@ class AppFixtures extends Fixture
         // $product = new Product();
         // $manager->persist($product);
         /** exemple */
-        $roles = [
-            ["ROLE_USER"],
-            ["ROLE_ADMIN"],
-        ];
         $statusCompany = [
             "EI",
             "EIRL",
@@ -107,58 +110,69 @@ class AppFixtures extends Fixture
 
             $user = new User();
             $user->setEmail($faker->freeEmail());
-            $user->setPassword($faker->password());
+            $user->setPassword($this->userPasswordHasher->hashPassword($user, "password"));
             $user->setAddress($faker->address());
             $user->setPhone($faker->phoneNumber());
             $user->setAvatar($faker->imageUrl(360, 360, 'Avatar', true));
             $user->setIsVerified((boolval(rand())));
-            $selectedRoleKey = ($roles[rand(0, count($roles) - 1)]);
+            $selectedRoleKey = ["ROLE_USER"];
             $user->setRoles($selectedRoleKey);
-            if ($selectedRoleKey === ["ROLE_USER"]) {
-                $particulier = new Particulier();
-                //Cette méthode retourne un tableau des choix possibles.
-                $genderChoices =  Particulier::getGenderChoices();
-                //On récupère une clé aléatoire à partir du tableau $genderChoices.
-                $randomGenderKey = array_rand($genderChoices);
-                //$randomGender sera la valeur associée à la clé $randomGenderKey dans le tableau $genderChoices.
-                $randomGender = $genderChoices[$randomGenderKey];
-                //Enfin on indique $randomGender qui représente le genre à affecter à la propriété gender de l'objet $particulier.
-                $particulier->setGender($randomGender);
-                if ($randomGender === 'Masculin') {
-                    $particulier->setFirstName($faker->firstName('male'));
-                    # code...
-                } elseif ($randomGender === 'Féminin') {
-                    $particulier->setFirstName($faker->firstName('female'));
-                } else {
-                    $particulier->setFirstName($faker->firstName());
-                }
-                $particulier->setLastName($faker->lastName());
-                $particulier->setBirthday($faker->dateTime());
-                $particulier->setJob($faker->jobTitle());
-                // Ajoutez l'objet $particulier au tableau $particuliers
-                $particuliers[] = $particulier;
-                $manager->persist($particulier);
-            } elseif ($selectedRoleKey === ["ROLE_ADMIN"]) {
-                $client = new Client();
-                $client->setName($faker->company());
-                $siret = str_pad($faker->randomNumber(9), 14, '0', STR_PAD_RIGHT);
-                $client->setSiret($siret);
-                $companyName = $faker->company();
-                $domaine = $faker->tld();
-                $client->setBusiness($companyName);
-                $client->setWebSite($companyName . '.' . $domaine);
-                //On récupère une string aléatoire à partir du tableau $statusCompany.
-                $randomStatusCompany = array_rand($statusCompany);
-                $client->setLegalStatus($statusCompany[$randomStatusCompany]);
-                // Vérifiez si le tableau $particuliers contient des éléments avant d'en sélectionner un.
-                if (!empty($particuliers)) {
-                    // Sélectionnez un particulier aléatoire parmi ceux créés
-                    $randomParticulier = $particuliers[array_rand($particuliers)];
-                    $client->addClientsParticulier($randomParticulier);
-                }
-                $manager->persist($client);
+            $particulier = new Particulier();
+            //Cette méthode retourne un tableau des choix possibles.
+            $genderChoices =  Particulier::getGenderChoices();
+            //On récupère une clé aléatoire à partir du tableau $genderChoices.
+            $randomGenderKey = array_rand($genderChoices);
+            //$randomGender sera la valeur associée à la clé $randomGenderKey dans le tableau $genderChoices.
+            $randomGender = $genderChoices[$randomGenderKey];
+            //Enfin on indique $randomGender qui représente le genre à affecter à la propriété gender de l'objet $particulier.
+            $particulier->setGender($randomGender);
+            if ($randomGender === 'Masculin') {
+                $particulier->setFirstName($faker->firstName('male'));
+            } elseif ($randomGender === 'Féminin') {
+                $particulier->setFirstName($faker->firstName('female'));
+            } else {
+                $particulier->setFirstName($faker->firstName());
             }
+            $particulier->setLastName($faker->lastName());
+            $particulier->setBirthday($faker->date("Y-m-d"));
+            $particulier->setJob($faker->jobTitle());
 
+            // Ajoute l'objet $particulier au tableau $particuliers
+            $particuliers[] = $particulier;
+
+            $user->setParticulier($particulier);
+            $manager->persist($user);
+        }
+        for ($i = 0; $i < 20; $i++) {
+            $faker = Factory::create("fr_FR");
+
+            $user = new User();
+            $user->setEmail($faker->freeEmail());
+            $user->setPassword($this->userPasswordHasher->hashPassword($user, "password"));
+            $user->setAddress($faker->address());
+            $user->setPhone($faker->phoneNumber());
+            $user->setAvatar($faker->imageUrl(360, 360, 'Avatar', true));
+            $user->setIsVerified((boolval(rand())));
+            $selectedRoleKey = ["ROLE_ADMIN"];
+            $user->setRoles($selectedRoleKey);
+            $client = new Client();
+            $client->setName($faker->lastName());
+            $siret = str_pad($faker->randomNumber(9), 14, '0', STR_PAD_RIGHT);
+            $client->setSiret($siret);
+            $companyName = $faker->company();
+            $client->setBusiness($companyName);
+            $domaine = $faker->tld();
+            $client->setWebSite($companyName . '.' . $domaine);
+            //On récupère une string aléatoire à partir du tableau $statusCompany.
+            $randomStatusCompany = array_rand($statusCompany);
+            $client->setLegalStatus($statusCompany[$randomStatusCompany]);
+            // Vérifiez si le tableau $particuliers contient des éléments avant d'en sélectionner un.
+            if (!empty($particuliers)) {
+                // Sélectionnez un particulier aléatoire parmi ceux créés
+                $randomParticulier = $particuliers[array_rand($particuliers)];
+                $client->addClientsParticulier($randomParticulier);
+            }
+            $user->setClient($client);
             $manager->persist($user);
         }
     }
