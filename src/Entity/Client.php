@@ -11,7 +11,6 @@ use Symfony\Component\Validator\Constraints as Assert;
 use JMS\Serializer\Annotation\Groups;
 
 #[ORM\Entity(repositoryClass: ClientsRepository::class)]
-// #[Assert\Traverse]
 class Client
 {
     #[ORM\Id]

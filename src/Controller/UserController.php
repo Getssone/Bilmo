@@ -5,7 +5,6 @@ namespace App\Controller;
 use App\Entity\Client;
 use App\Entity\Particulier;
 use App\Entity\User;
-use App\Repository\ParticulierRepository;
 use App\Repository\UserRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,7 +22,8 @@ use Symfony\Component\Routing\Requirement\Requirement;
 use \Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
-
+use Symfony\Contracts\Cache\ItemInterface;
+use Symfony\Contracts\Cache\TagAwareCacheInterface;
 
 class UserController extends AbstractController
 {
@@ -36,14 +36,26 @@ class UserController extends AbstractController
 
     #[Route('/api/users', name: 'all_user', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits suffisants pour voir les users')]
-    public function getAllUser(UserRepository $users): JsonResponse
+    public function getAllUser(UserRepository $users, Request $request, TagAwareCacheInterface $cache): JsonResponse
     {
 
         try {
-            $serializer = SerializerBuilder::create()->build();
-            $context = SerializationContext::create()->setGroups(['getCustomers', 'getClient']);
-            $usersList = $users->findAll();
-            $jsonUsersList = $serializer->serialize($usersList, 'json', $context);
+            $page = $request->get('page', 1);
+            $limit = $request->get('limit', 3);
+            $idCache = 'getAllUsers-' . $page . "-" . $limit;
+
+            $jsonUsersList = $cache->get($idCache, function (ItemInterface $item) use ($users, $page, $limit) {
+                $serializer = SerializerBuilder::create()->build();
+                $context = SerializationContext::create()->setGroups(['getCustomers', 'getClient']);
+                echo ('nous enregistrons cette requête dans le cache');
+                $item->tag('allUsersCache');
+                $usersList = $users->findAllWidthPagination($page, $limit);
+
+                return $serializer->serialize($usersList, 'json', $context);
+            });
+
+
+
             return new JsonResponse(
                 $jsonUsersList,
                 Response::HTTP_OK,
@@ -51,13 +63,13 @@ class UserController extends AbstractController
                 true
             );
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => "Une erreur lors de la récupération des données s'est produite."], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     #[Route('/api/users', name: 'created_user', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour crée un utilisateur')]
-    public function createUser(Request $request, UserPasswordHasherInterface $userPasswordHasher, ValidatorInterface $validator, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator): JsonResponse
+    public function createUser(Request $request, UserPasswordHasherInterface $userPasswordHasher, ValidatorInterface $validator, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache): JsonResponse
     {
         try {
             $context = SerializationContext::create()->setGroups(['getCustomers', 'getClient']);
@@ -93,9 +105,10 @@ class UserController extends AbstractController
                         $currentAdminUser->getClient()->addClientsParticulier($createdUser->getParticulier());
                     }
                 } catch (\Exception $e) {
-                    return new JsonResponse(['error' => "n'as pas pu trouver qui vous êtes pour crée un utilisateur"], Response::HTTP_INTERNAL_SERVER_ERROR);
+                    return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
                 }
             }
+            $cache->invalidateTags(['allUsersCache', 'userAllParticulierCache', 'IdUserCache', 'IdUserParticulierCache']);
             $em->persist($createdUser);
             $em->flush($createdUser);
 
@@ -109,20 +122,27 @@ class UserController extends AbstractController
                 true
             );
         } catch (\Exception $e) {
-            return new JsonResponse(['shortError' => "Une erreur lors de l'enregistrement des données une erreur s'est produite.", 'longError' =>  '' . $e], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     #[Route('/api/users/{id}', name: 'user_id', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour voir le détail d\'un utilisateur')]
-    public function getThisUser(User $user): JsonResponse
+    public function getThisUser(User $user, TagAwareCacheInterface $cache): JsonResponse
     {
         try {
             $currentUser = $this->security->getUser();
             if ($currentUser === $user) {
-                $serializer = SerializerBuilder::create()->build();
-                $context = SerializationContext::create()->setGroups(["getClient", "getArrayClient", 'getCustomers']);
-                $jsonUser = $serializer->serialize($user, 'json', $context);
+                $idCache = 'getThisUser-' . $user->getId();
+
+                $jsonUser = $cache->get($idCache, function (ItemInterface $item) use ($user) {
+                    $serializer = SerializerBuilder::create()->build();
+                    $context = SerializationContext::create()->setGroups(["getClient", "getArrayClient", 'getCustomers']);
+                    echo ('nous enregistrons cette requête dans le cache');
+                    $item->tag('IdUserCache');
+
+                    return $serializer->serialize($user, 'json', $context);
+                });
 
                 return new JsonResponse(
                     $jsonUser,
@@ -151,6 +171,7 @@ class UserController extends AbstractController
         SerializerInterface $serializer,
         EntityManagerInterface $em,
         UrlGeneratorInterface $urlGenerator,
+        TagAwareCacheInterface $cache
     ): JsonResponse {
 
         try {
@@ -195,7 +216,6 @@ class UserController extends AbstractController
                         if (method_exists(User::class, $setter)) {
                             $currentUser->$setter($value);
                         } elseif (in_array('ROLE_ADMIN', $currentUser->getRoles())) {
-                            dd($setter);
                             if (method_exists(Client::class, $setter)) {
                                 $currentUser->getClient()->$setter($value);
                             }
@@ -205,7 +225,7 @@ class UserController extends AbstractController
                             }
                         }
                     }
-
+                    $cache->invalidateTags(['allUsersCache', 'userAllParticulierCache', 'IdUserCache', 'IdUserParticulierCache']);
                     $em->persist($currentUser);
                     $em->flush();
 
@@ -225,17 +245,18 @@ class UserController extends AbstractController
                 return new JsonResponse(["error" => "Cette utilisateur ne fait pas partie de vos clients Particulier."], Response::HTTP_NOT_FOUND);
             }
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => "Une erreur lors de la récupération des données s'est produite."], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     #[Route('/api/users/{id}/delete', name: 'delete_user', methods: ['DELETE'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour supprimer un utilisateur')]
-    public function deleteUser(User $user, EntityManagerInterface $em): JsonResponse
+    public function deleteUser(User $user, EntityManagerInterface $em, TagAwareCacheInterface $cache): JsonResponse
     {
         try {
             $currentUser = $this->security->getUser();
             if ($currentUser === $user) {
+                $cache->invalidateTags(['allUsersCache', 'userAllParticulierCache', 'IdUserCache', 'IdUserParticulierCache']);
                 $em->remove($user);
                 $em->flush();
 
@@ -246,62 +267,87 @@ class UserController extends AbstractController
             }
             return new JsonResponse(["error" => "Aucun utilisateur n'à était trouver."], Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => "Une erreur lors de la récupération des données s'est produite."], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     #[Route('/api/users/{id}/Profil', name: 'user_id_profil', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour mettre à jour cette utilisateur')]
-    public function getThisUserProfil(User $user): JsonResponse
+    public function getThisUserProfil(User $user, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache): JsonResponse
     {
         try {
             $currentUser = $this->security->getUser();
             if ($currentUser === $user) {
-                $serializer = SerializerBuilder::create()->build();
-                $context = SerializationContext::create()->setGroups(["getUserProfil", 'getClient', 'getCustomers']);
-                $jsonUsersList = $serializer->serialize($user, 'json', $context);
+                $idCache = 'getThisUserProfil-' . $user->getId();
 
+                $jsonUserProfil = $cache->get($idCache, function (ItemInterface $item) use ($user) {
+                    $serializer = SerializerBuilder::create()->build();
+                    $context = SerializationContext::create()->setGroups(["getUserProfil", 'getClient', 'getCustomers']);
+                    echo ('nous enregistrons cette requête dans le cache');
+                    $item->tag('IdUserProfilCache');
+
+                    return $serializer->serialize($user, 'json', $context);
+                });
+
+                $location = $urlGenerator->generate('user_id', ['id' => $user->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
                 return new JsonResponse(
-                    $jsonUsersList,
+                    $jsonUserProfil,
                     Response::HTTP_OK,
-                    [],
+                    ['location' => $location],
                     true
                 );
             }
             return new JsonResponse(["error" => "Aucun utilisateur n'à était trouver."], Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => "Une erreur lors de la récupération des données s'est produite."], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     #[Route('/api/users/{id}/my-customers', name: 'user_my-customers', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour voir les client de cette utilisateur')]
-    public function getMyCustomers(User $user): JsonResponse
+    public function getMyCustomers(User $user, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache): JsonResponse
     {
         try {
             $currentUser = $this->security->getUser();
             if ($currentUser === $user) {
-                $client = $user->getClient();
-                if (!$client) {
-                    return new JsonResponse(["error" => "L'utilisateur n'a pas de compte client associé."], Response::HTTP_BAD_REQUEST);
-                }
+                $idCache = 'getThisUserAllParticulier-' . $user->getId();
 
-                $serializer = SerializerBuilder::create()->build();
-                $context = SerializationContext::create()->setGroups(['getCustomers']);
+                $jsonAllParticulier = $cache->get($idCache, function (ItemInterface $item) use ($user, $urlGenerator) {
+                    $serializer = SerializerBuilder::create()->build();
+                    $context = SerializationContext::create()->setGroups(['getCustomers']);
+                    echo ('nous enregistrons cette requête dans le cache');
+                    $item->tag('userAllParticulierCache');
 
-                $particuliersList = $client->getClientsParticulier();
-                $jsonParticuliersList = $serializer->serialize($particuliersList, 'json', $context);
+                    $client = $user->getClient();
 
-                return new JsonResponse(
-                    $jsonParticuliersList,
+                    if (!$client) {
+                        return new JsonResponse(["error" => "L'utilisateur n'a pas de compte client associé."], Response::HTTP_BAD_REQUEST);
+                    }
+
+                    $particuliersList = $client->getClientsParticulier();
+                    return   $serializer->serialize($particuliersList, 'json', $context);
+                });
+
+                $response = new JsonResponse(
+                    $jsonAllParticulier,
                     Response::HTTP_OK,
                     [],
                     true
                 );
+                $client = $user->getClient();
+                $particuliersList = $client->getClientsParticulier();
+                $locations = [];
+                // Créer une chaîne de caractères pour les URL de localisation
+                foreach ($particuliersList as $particulier) {
+                    $locations[] = $urlGenerator->generate('user_id', ['id' => $particulier->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
+                }
+                $response->headers->set('Location', $locations);
+
+                return $response;
             }
             return new JsonResponse(["error" => "Aucun utilisateur n'à était trouver."], Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => "Une erreur lors de la récupération des données s'est produite."], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
     #[Route('/api/users/{id}/my-customers/{particulier_id}', name: 'user_my-customer', methods: ['GET'], requirements: ['id' => Requirement::DIGITS, 'particulier_id' => Requirement::DIGITS])]
@@ -309,7 +355,9 @@ class UserController extends AbstractController
     public function getThisCustomer(
         User $user,
         #[MapEntity(id: 'particulier_id')]
-        Particulier $particulier
+        Particulier $particulier,
+        UrlGeneratorInterface $urlGenerator,
+        TagAwareCacheInterface $cache
     ): JsonResponse {
         try {
             $currentUser = $this->security->getUser();
@@ -318,23 +366,27 @@ class UserController extends AbstractController
                 if (!$client) {
                     return new JsonResponse(["error" => "L'utilisateur n'a pas de compte client associé."], Response::HTTP_BAD_REQUEST);
                 }
-
-
                 // Récupération de la liste des particuliers du client
                 $particuliersList = $client->getClientsParticulier();
 
                 if ($particuliersList->contains($particulier)) {
+                    $idCache = 'getThisUserParticulier-' . $particulier->getId();
 
-                    $serializer = SerializerBuilder::create()->build();
-                    $context = SerializationContext::create()->setGroups(['getCustomers']);
-                    $jsonParticulier = $serializer->serialize($particulier, 'json', $context);
+                    $jsonParticulier = $cache->get($idCache, function (ItemInterface $item) use ($particulier) {
+                        $serializer = SerializerBuilder::create()->build();
+                        $context = SerializationContext::create()->setGroups(['getCustomers']);
+                        echo ('nous enregistrons cette requête dans le cache');
+                        $item->tag('IdUserParticulierCache');
 
-                    return new JsonResponse($jsonParticulier, Response::HTTP_OK, [], true);
+                        return $serializer->serialize($particulier, 'json', $context);
+                    });
+                    $location = $urlGenerator->generate('delete_user_my-customer', ['id' => $user->getId(), 'particulier_id' => $particulier->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
+                    return new JsonResponse($jsonParticulier, Response::HTTP_OK, ["location" => $location], true);
                 }
             }
             return new JsonResponse(["error" => "cette utilisateur n'est pas dans la liste de vos client Particulier."], Response::HTTP_FORBIDDEN);
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => "Une erreur lors de la récupération des données s'est produite."], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -345,7 +397,8 @@ class UserController extends AbstractController
         User $user,
         #[MapEntity(id: 'particulier_id')]
         Particulier $particulier,
-        EntityManagerInterface $em
+        EntityManagerInterface $em,
+        TagAwareCacheInterface $cache
     ): JsonResponse {
 
         try {
@@ -360,9 +413,11 @@ class UserController extends AbstractController
                 $particuliersList = $client->getClientsParticulier();
 
                 if ($particuliersList->contains($particulier)) {
-
+                    $cache->invalidateTags(['allUsersCache', 'userAllParticulierCache', 'IdUserCache', 'IdUserParticulierCache']);
                     $em->remove($particulier);
                     $em->flush();
+
+
 
                     return new JsonResponse(
                         null,
@@ -372,7 +427,7 @@ class UserController extends AbstractController
             }
             return new JsonResponse(["error" => "cette utilisateur n'est pas dans la liste de vos client Particulier."], Response::HTTP_FORBIDDEN);
         } catch (\Exception $e) {
-            return new JsonResponse(['error' => "Une erreur lors de la récupération des données s'est produite."], Response::HTTP_INTERNAL_SERVER_ERROR);
+            return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }
