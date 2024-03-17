@@ -128,20 +128,20 @@ class AppFixtures extends Fixture
             $particulier->setGender($randomGender);
             if ($randomGender === 'Masculin') {
                 $particulier->setFirstName($faker->firstName('male'));
-                # code...
             } elseif ($randomGender === 'Féminin') {
                 $particulier->setFirstName($faker->firstName('female'));
             } else {
                 $particulier->setFirstName($faker->firstName());
             }
             $particulier->setLastName($faker->lastName());
-            $particulier->setBirthday($faker->dateTime());
+            $particulier->setBirthday($faker->date("Y-m-d"));
             $particulier->setJob($faker->jobTitle());
-            // Ajoutez l'objet $particulier au tableau $particuliers
+
+            // Ajoute l'objet $particulier au tableau $particuliers
             $particuliers[] = $particulier;
 
+            $user->setParticulier($particulier);
             $manager->persist($user);
-            $manager->persist($particulier);
         }
         for ($i = 0; $i < 20; $i++) {
             $faker = Factory::create("fr_FR");
@@ -156,12 +156,12 @@ class AppFixtures extends Fixture
             $selectedRoleKey = ["ROLE_ADMIN"];
             $user->setRoles($selectedRoleKey);
             $client = new Client();
-            $client->setName($faker->company());
+            $client->setName($faker->lastName());
             $siret = str_pad($faker->randomNumber(9), 14, '0', STR_PAD_RIGHT);
             $client->setSiret($siret);
             $companyName = $faker->company();
-            $domaine = $faker->tld();
             $client->setBusiness($companyName);
+            $domaine = $faker->tld();
             $client->setWebSite($companyName . '.' . $domaine);
             //On récupère une string aléatoire à partir du tableau $statusCompany.
             $randomStatusCompany = array_rand($statusCompany);
@@ -172,8 +172,8 @@ class AppFixtures extends Fixture
                 $randomParticulier = $particuliers[array_rand($particuliers)];
                 $client->addClientsParticulier($randomParticulier);
             }
+            $user->setClient($client);
             $manager->persist($user);
-            $manager->persist($client);
         }
     }
 }

@@ -1,5 +1,5 @@
 <?php
-// src/EventSubscriber/ExceptionSubscriber.php
+
 namespace App\EventSubscriber;
 
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
@@ -8,7 +8,7 @@ use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 use Symfony\Component\HttpKernel\KernelEvents;
 
-class ExceptionSubscriber implements EventSubscriberInterface
+class EventSubscriber implements EventSubscriberInterface
 {
     public function onKernelException(ExceptionEvent $event): void
     {
@@ -26,34 +26,14 @@ class ExceptionSubscriber implements EventSubscriberInterface
                 'status' => 500, // Le status n'existe pas car ce n'est pas une exception HTTP, donc on met 500 par défaut.
                 'message' => $exception->getMessage()
             ];
+
             $event->setResponse(new JsonResponse($data));
         }
     }
-
     public static function getSubscribedEvents(): array
     {
-        // return the subscribed events, their methods and priorities
         return [
-            KernelEvents::EXCEPTION => [
-                ['processException', 10],
-                ['logException', 0],
-                ['notifyException', -10],
-            ],
+            KernelEvents::EXCEPTION => 'onKernelException',
         ];
-    }
-
-    public function processException(ExceptionEvent $event): void
-    {
-        $this->onKernelException($event);
-    }
-
-    public function logException(ExceptionEvent $event): void
-    {
-        $this->onKernelException($event);
-    }
-
-    public function notifyException(ExceptionEvent $event): void
-    {
-        $this->onKernelException($event);
     }
 }

@@ -14,6 +14,7 @@
     "doctrine/orm": "^3.0",
     "fakerphp/faker": "^1.23",
     "jms/serializer": "^3.30",
+    "jms/serializer-bundle": "^5.4",
     "lexik/jwt-authentication-bundle": "^2.18",
     "phpdocumentor/reflection-docblock": "^5.3",
     "phpstan/phpdoc-parser": "^1.26",
@@ -26,7 +27,8 @@
     "symfony/security-bundle": "6.4.*",
     "symfony/serializer": "6.4.*",
     "symfony/validator": "6.4.*",
-    "symfony/yaml": "6.4.*"
+    "symfony/yaml": "6.4.*",
+    "willdurand/hateoas": "^3.10"
   },
   "config": {
     "allow-plugins": {
