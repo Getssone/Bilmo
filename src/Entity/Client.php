@@ -58,31 +58,31 @@ class Client
     #[Assert\NotBlank(message: "Le nom est obligatoire", groups: ['registration'])]
     #[Assert\Length(min: 1, max: 255, minMessage: "Le nom doit faire au moins {{ limit }} caractères", maxMessage: "Le nom ne peut pas faire plus de {{ limit }} caractères")]
     #[Assert\Regex(pattern: "/^[a-zA-Z\s]+$/", message: "Le nom ne doit contenir que des lettres et des espaces")]
-    #[Groups(["getUserProfil", "getClient", "updateClient"])]
+    #[Groups(["getUserProfil", "getClient", "createUserClient_bodyOA", "updateClient", "updateClient_bodyOA"])]
     private string $name;
 
     #[ORM\Column(type: Types::STRING, nullable: true)]
     #[Assert\Length(min: 0, max: 14, minMessage: "Le SIRET doit faire au moins {{ limit }} caractères", maxMessage: "Le SIRET ne peut pas faire plus de {{ limit }} caractères")]
-    #[Groups(["getUserProfil", "getClient", "updateClient"])]
+    #[Groups(["getUserProfil", "getClient", "createUserClient_bodyOA", "updateClient", "updateClient_bodyOA"])]
     private ?string $siret = null;
 
     #[ORM\Column(type: 'string', length: 255)]
     #[Assert\NotBlank(message: "L'activité est obligatoire", groups: ['registration'])]
     #[Assert\Length(min: 1, max: 255, minMessage: "L'activité doit faire au moins {{ limit }} caractères", maxMessage: "L'activité ne peut pas faire plus de {{ limit }} caractères")]
     #[Assert\Regex(pattern: "/^[a-zA-Z0-9\s]+$/", message: "L'activité ne doit contenir que des lettres, des chiffres et des espaces")]
-    #[Groups(["getUserProfil", "getClient", "updateClient"])]
+    #[Groups(["getUserProfil", "getClient", "createUserClient_bodyOA", "updateClient", "updateClient_bodyOA"])]
     private string $business;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Assert\Length(min: 0, max: 255,  minMessage: "L'URL du site web doit faire au moins {{ limit }} caractères", maxMessage: "L'URL du site web ne peut pas faire plus de {{ limit }} caractères")]
     #[Assert\Url(message: "L'URL du site web n'est pas valide")]
-    #[Groups(["getUserProfil", "getClient", "updateClient"])]
+    #[Groups(["getUserProfil", "getClient", "createUserClient_bodyOA", "updateClient", "updateClient_bodyOA"])]
     private ?string $webSite = null;
 
     #[ORM\Column(length: 255, nullable: true)]
     #[Assert\Length(min: 0, max: 255, minMessage: "Le statut juridique doit faire au moins {{ limit }} caractères", maxMessage: "Le statut juridique ne peut pas faire plus de {{ limit }} caractères")]
     #[Assert\Regex(pattern: "/^[a-zA-Z\s]+$/", message: "Le statut juridique ne doit contenir que des lettres et des espaces")]
-    #[Groups(["getUserProfil", "getClient", "updateClient"])]
+    #[Groups(["getUserProfil", "getClient", "createUserClient_bodyOA", "updateClient", "updateClient_bodyOA"])]
     private ?string $legalStatus = null;
 
     #[ORM\OneToMany(targetEntity: Particulier::class, mappedBy: 'client')]

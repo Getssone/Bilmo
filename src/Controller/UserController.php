@@ -18,11 +18,15 @@ use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Routing\Requirement\Requirement;
-use \Symfony\Bundle\SecurityBundle\Security;
+use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Component\Validator\Validator\ValidatorInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
+use Nelmio\ApiDocBundle\Annotation\Model;
+use Nelmio\ApiDocBundle\Annotation\Security as SecutiyOA;
+use OpenApi\Annotations as OA;
+use Symfony\Component\Routing\Annotation\Route as RouteOA;
 
 class UserController extends AbstractController
 {
@@ -33,6 +37,34 @@ class UserController extends AbstractController
         $this->security = $security;
     }
 
+    /**
+     * Cette méthode permet de récupérer l'ensemble des Users pour des tests.
+     * @OA\Response(
+     *     response=200,
+     *     description="Retourne la liste des users",
+     *      @OA\JsonContent(ref="#/components/schemas/MainUser_getClient")
+     * )
+     * @OA\Parameter(
+     *     name="page",
+     *     in="query",
+     *     description="La page que l'on veut récupérer",
+     *     @OA\Schema(type="int")
+     * )
+     *
+     * @OA\Parameter(
+     *     name="limit",
+     *     in="query",
+     *     description="Le nombre d'éléments que l'on veut récupérer",
+     *     @OA\Schema(type="int")
+     * )
+     * @OA\Tag(name="Users")
+     *
+     * @param UserRepository $users
+     * @param SerializerInterface $serializer
+     * @param Request $request
+     * @param TagAwareCacheInterface $cache,
+     * @return JsonResponse
+     */
     #[Route('/api/users', name: 'all_user', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits suffisants pour voir les users')]
     public function getAllUser(UserRepository $users, Request $request, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
@@ -64,7 +96,33 @@ class UserController extends AbstractController
             return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
+    /**
+     * Cette méthode permet de crée un User "SOIT Client SOIT Particulier".
+     * @OA\Response(
+     *     response=200,
+     *     description="Retourne un user Client",
+     *     @OA\JsonContent(ref="#/components/schemas/MainUser_createClient")
+     * )
+     * @OA\RequestBody(
+     *         description="Données de l'utilisateur à créer ⚠ Un Utilisateur et soit Client Soit Particulier",
+     *         required=true,
+     *         @OA\JsonContent(
+     *            oneOf = {
+     *                 @OA\Schema(ref="#/components/schemas/MainUser_createUser"),
+     *             }
+     *         )
+     *     ),
+     * @OA\Tag(name="Users")
+     *
+     * @param Request $request
+     * @param UserPasswordHasherInterface $userPasswordHasher
+     * @param ValidatorInterface $validator
+     * @param SerializerInterface $serializer
+     * @param EntityManagerInterface $em
+     * @param UrlGeneratorInterface $urlGenerator
+     * @param TagAwareCacheInterface $cache
+     * @return JsonResponse
+     */
     #[Route('/api/users', name: 'created_user', methods: ['POST'])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour crée un utilisateur')]
     public function createUser(Request $request, UserPasswordHasherInterface $userPasswordHasher, ValidatorInterface $validator, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache): JsonResponse
@@ -124,6 +182,22 @@ class UserController extends AbstractController
         }
     }
 
+    /**
+     * Cette méthode permet de récupérer l'ensemble des informations du Client.
+     * @OA\Response(
+     *     response=200,
+     *     description="Retourne les informations sur le Client",* 
+     *     @OA\JsonContent(ref="#/components/schemas/MainUser_getClient")
+     *     
+     * )
+     *
+     * @OA\Tag(name="Users")
+     *
+     * @param User $users
+     * @param TagAwareCacheInterface $cache,
+     * @param SerializerInterface $serializer
+     * @return JsonResponse
+     */
     #[Route('/api/users/{id}', name: 'user_id', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour voir le détail d\'un utilisateur')]
     public function getThisUser(User $user, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
@@ -158,7 +232,32 @@ class UserController extends AbstractController
         }
     }
 
-
+    /**
+     * Cette méthode permet de mettre à jour un User "SOIT Client SOIT Particulier".
+     * @OA\Response(
+     *     response=200,
+     *     description="Retourne un user Client",
+     *     @OA\JsonContent(ref="#/components/schemas/MainUser_updateUser")
+     * )
+     * @OA\RequestBody(
+     *         description="Données de l'utilisateur à modifié ⚠ Un Utilisateur et soit Client Soit Particulier",
+     *         @OA\JsonContent(
+     *            oneOf = {
+     *                 @OA\Schema(ref="#/components/schemas/MainUser_updateUser"),
+     *             }
+     *         )
+     *     ),
+     * @OA\Tag(name="Users")
+     *
+     * @param Request $request
+     * @param User $currentUser
+     * @param ValidatorInterface $validator
+     * @param SerializerInterface $serializer
+     * @param EntityManagerInterface $em
+     * @param UrlGeneratorInterface $urlGenerator
+     * @param TagAwareCacheInterface $cache
+     * @return JsonResponse
+     */
     #[Route('/api/users/{id}', name: 'update_user', methods: ['PUT'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour mettre à jour un utilisateur')]
     public function updateUser(
@@ -293,7 +392,20 @@ class UserController extends AbstractController
             return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
+    /**
+     * Cette méthode permet de supprimer l'ensemble des informations du Client.
+     * @OA\Response(
+     *     response=204,
+     *     description="supprime le client sans retourner d'object",
+     * )
+     *
+     * @OA\Tag(name="Users")
+     *
+     * @param User $users
+     * @param EntityManagerInterface $em,
+     * @param TagAwareCacheInterface $cache,
+     * @return JsonResponse
+     */
     #[Route('/api/users/{id}', name: 'delete_user', methods: ['DELETE'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour supprimer un utilisateur')]
     public function deleteUser(User $user, EntityManagerInterface $em, TagAwareCacheInterface $cache): JsonResponse
@@ -316,7 +428,21 @@ class UserController extends AbstractController
             return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
+    /**
+     * Cette méthode permet de voir le Profil et la totalité des informations du compte Client.
+     * @OA\Response(
+     *     response=200,
+     *     description="Retourne le profil du Client",
+     *     @OA\JsonContent(ref="#/components/schemas/MainUser_getUserProfil")
+     * )
+     *
+     * @OA\Tag(name="Users")
+     *
+     * @param User $users
+     * @param EntityManagerInterface $em,
+     * @param TagAwareCacheInterface $cache,
+     * @return JsonResponse
+     */
     #[Route('/api/users/{id}/Profil', name: 'user_id_profil', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour mettre à jour cette utilisateur')]
     public function getThisUserProfil(User $user, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
@@ -347,7 +473,22 @@ class UserController extends AbstractController
             return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-
+    /**
+     * Cette méthode permet de voir la totalité des ClientParticulier attacher a son propre compte Client.
+     * @OA\Response(
+     *     response=200,
+     *     description="Retourne la liste des ClientParticulier",
+     *     @OA\JsonContent(ref="#/components/schemas/MainUser_getInfoCustomerArray")
+     * )
+     *
+     * @OA\Tag(name="Users_Customers")
+     *
+     * @param User $users
+     * @param UrlGeneratorInterface $urlGenerator
+     * @param TagAwareCacheInterface $cache
+     * @param SerializerInterface $serializer
+     * @return JsonResponse
+     */
     #[Route('/api/users/{id}/my-customers', name: 'user_my-customers', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour voir les client de cette utilisateur')]
     public function getMyCustomers(User $user, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
@@ -394,6 +535,24 @@ class UserController extends AbstractController
             return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
+
+    /**
+     * Cette méthode permet de voir les information d'un ClientParticulier attacher a son propre compte Client.
+     * @OA\Response(
+     *     response=200,
+     *     description="Retourne les informations du ClientParticulier",
+     *     @OA\JsonContent(ref="#/components/schemas/MainUser_getCustomers")
+     * )
+     *
+     * @OA\Tag(name="Users_Customers")
+     *
+     * @param  User $user
+     * @param  Particulier $particulier
+     * @param  UrlGeneratorInterface $urlGenerator
+     * @param  TagAwareCacheInterface $cache
+     * @param  SerializerInterface $serializer
+     * @return JsonResponse
+     */
     #[Route('/api/users/{id}/my-customers/{particulier_id}', name: 'user_my-customer', methods: ['GET'], requirements: ['id' => Requirement::DIGITS, 'particulier_id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour voir les detail de ce client')]
     public function getThisCustomer(
@@ -437,7 +596,23 @@ class UserController extends AbstractController
         }
     }
 
-
+    /**
+     * Cette méthode permet de supprimer les information d'un ClientParticulier attacher a son propre compte Client.
+     * @OA\Response(
+     *     response=204,
+     *     description="supprime le client sans retourner d'object",
+     * )
+     * )
+     *
+     * @OA\Tag(name="Users_Customers")
+     *
+     * @param  User $user
+     * @param  Particulier $particulier
+     * @param  UrlGeneratorInterface $urlGenerator
+     * @param  TagAwareCacheInterface $cache
+     * @param  SerializerInterface $serializer
+     * @return JsonResponse
+     */
     #[Route('/api/users/{id}/my-customers/{particulier_id}', name: 'delete_user_my-customer', methods: ['DELETE'], requirements: ['id' => Requirement::DIGITS, 'particulier_id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour supprimer le client de cette utilisateur')]
     public function deleteThisCustomer(

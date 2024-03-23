@@ -30,7 +30,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?int $id = null;
 
     #[ORM\Column(name: 'email', type: 'string', length: 255, unique: true)]
-    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "createUserClient_bodyOA",  "getCustomers", "updateClient", "updateParticulier", "updateClient_bodyOA", "updateParticulier_bodyOA"])]
     #[Assert\NotBlank(message: "L'email est obligatoire", groups: ['registration'])]
     #[Assert\Email(message: "L'email n'est pas valide", groups: ['registration', 'updateProfile'])]
     private string $email;
@@ -54,12 +54,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private array $roles = [];
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "createUserClient_bodyOA", "getCustomers", "updateClient", "updateParticulier", "updateClient_bodyOA", "updateParticulier_bodyOA"])]
     #[Assert\Length(max: 255, maxMessage: "L'adresse ne peut pas faire plus de {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     private ?string $address = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "createUserClient_bodyOA", "getCustomers", "updateClient", "updateParticulier", "updateClient_bodyOA", "updateParticulier_bodyOA"])]
     #[Assert\NotBlank(message: "Le téléphone est obligatoire", groups: ['registration'])]
     #[Assert\Length(min: 10, minMessage: "Le téléphone doit faire au moins {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     #[Assert\Regex(pattern: "/^[0-9]+$/", message: "Le téléphone ne doit contenir que des chiffres", groups: ['registration', 'updateProfile'])]
@@ -67,7 +67,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "createUserClient_bodyOA", "getCustomers", "updateClient", "updateParticulier", "updateClient_bodyOA", "updateParticulier_bodyOA"])]
     #[Assert\Length(max: 255, maxMessage: "L'avatar ne peut pas faire plus de {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     private ?string $avatar = null;
 
@@ -77,12 +77,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private ?bool $isVerified = null;
 
     #[ORM\OneToOne(targetEntity: Client::class, cascade: ["persist", "remove"])]
-    #[Groups(["getUserProfil", "getClient", "createdUser", "updateClient"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "createUserClient_bodyOA", "updateClient", "updateClient_bodyOA"])]
     #[Assert\Valid(groups: ['registration', 'updateProfile'])]
     private ?Client $client = null;
 
     #[ORM\OneToOne(targetEntity: Particulier::class, cascade: ["persist", "remove"])]
-    #[Groups(["getUserProfil", "getCustomers", "createdUser", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getCustomers", "createdUser", "createUserClient_bodyOA", "updateParticulier", "updateParticulier_bodyOA"])]
     #[Assert\Valid(groups: ['registration', 'updateProfile'])]
     private ?Particulier $particulier = null;
 

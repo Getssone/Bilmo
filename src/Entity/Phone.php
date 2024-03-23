@@ -30,7 +30,7 @@ class Phone
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Assert\NotBlank('le type est obligatoire')]
+    #[Assert\NotBlank(message: 'le type est obligatoire')]
     #[Assert\Length(min: 1, max: 255, minMessage: 'Le type doit faire au moins {{limit}} caractères', maxMessage: "Le type ne peut pas faire plus de {{ limit }} caractères")]
     #[Assert\Regex(pattern: "/^[a-zA-Z\s]+$/", message: "Le type ne doit contenir que des lettres et des espaces")]
     #[Groups(["getPhones"])]
@@ -51,8 +51,8 @@ class Phone
     private string $model;
 
     #[ORM\Column]
-    #[Assert\NotBlank(message: "Le prix est obligatoire")]
-    #[Assert\Range(min: 0, max: 999999, minMessage: "Le prix doit être supérieur ou égal à {{ limit }}", maxMessage: "Le prix ne peut pas être supérieur à {{ limit }}")]
+    #[Assert\NotBlank(message: "")]
+    #[Assert\Range(min: 0, max: 999999, notInRangeMessage: "Le prix doit être compris entre {{ min }} et {{ max }}")]
     #[Groups(["getPhones"])]
     private int $price;
 
@@ -64,7 +64,7 @@ class Phone
     private ?string $description = null;
 
     #[ORM\Column]
-    #[Assert\Range(min: 0, max: 999999, minMessage: "Le stock doit être supérieur ou égal à {{ limit }}", maxMessage: "Le stock ne peut pas être supérieur à {{ limit }}")]
+    #[Assert\Range(min: 0, max: 999999, notInRangeMessage: "Le prix doit être compris entre {{ min }} et {{ max }}")]
     #[Groups(["getPhones"])]
     private ?int $stock = 0;
 

@@ -94,33 +94,33 @@ class Particulier
     private ?int $id = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(["getUserProfil", "getCustomers", "createdUser", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getCustomers", "createdUser", "createUserParticulier_bodyOA", "updateParticulier", "updateParticulier_bodyOA"])]
     #[Assert\NotBlank(message: "Le prénom est obligatoire", groups: ['registration'])]
     #[Assert\Length(max: 255, minMessage: "Le prénom doit faire au moins {{ limit }} caractères", maxMessage: "Le titre ne peut pas faire plus de {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     #[Assert\Regex(pattern: "/^[a-zA-Z\s]+$/", message: "Le prénom ne doit contenir que des lettres et des espaces", groups: ['registration', 'updateProfile'])]
     private ?string $firstName = '';
 
     #[ORM\Column(length: 255)]
-    #[Groups(["getUserProfil", "getCustomers", "createdUser", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getCustomers", "createdUser", "createUserParticulier_bodyOA", "updateParticulier", "updateParticulier_bodyOA"])]
     #[Assert\NotBlank(message: "Le nom est obligatoire", groups: ['registration'])]
     #[Assert\Length(max: 255, minMessage: "Le nom doit faire au moins {{ limit }} caractères", maxMessage: "Le titre ne peut pas faire plus de {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     #[Assert\Regex(pattern: "/^[a-zA-Z\s]+$/", message: "Le nom ne doit contenir que des lettres et des espaces", groups: ['registration', 'updateProfile'])]
     private ?string $lastName = '';
 
     #[ORM\Column(nullable: true)]
-    #[Groups(["getUserProfil", "getCustomers", "createdUser", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getCustomers", "createdUser", "createUserParticulier_bodyOA", "updateParticulier", "updateParticulier_bodyOA"])]
     #[Assert\Date(message: "la date d'anniversaire doit être sous le format Y-m-d (par exemple '2024-10-18')", groups: ['registration', 'updateProfile'])]
     private ?string $birthday = null;
 
 
     #[ORM\Column(type: "string", length: 10)]
-    #[Groups(["getUserProfil", "getCustomers", "createdUser", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getCustomers", "createdUser", "createUserParticulier_bodyOA", "updateParticulier", "updateParticulier_bodyOA"])]
     #[Assert\NotBlank(message: "Le genre est obligatoire", groups: ['registration'])]
     #[Assert\Choice(callback: 'getGenderChoices', groups: ['registration', 'updateProfile'])]
     protected string $gender;
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(["getUserProfil", "getCustomers", "createdUser", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getCustomers", "createdUser", "createUserParticulier_bodyOA", "updateParticulier", "updateParticulier_bodyOA"])]
     #[Assert\Length(min: 1, max: 255, minMessage: "Le job doit faire au moins {{ limit }} caractères", maxMessage: "Le titre ne peut pas faire plus de {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     #[Assert\Regex(pattern: "/^[a-zA-Z\s]+$/", message: "Le job ne doit contenir que des lettres et des espaces", groups: ['registration', 'updateProfile'])]
     private ?string $job = null;
@@ -129,7 +129,7 @@ class Particulier
     private ?Client $client = null;
 
     #[ORM\OneToOne(mappedBy: 'particulier', targetEntity: User::class, cascade: ["remove"])]
-    #[Groups(["getCustomers", "createdUser"])]
+    #[Groups(["getCustomers", "createdUser", "createUserParticulier_bodyOA"])]
     private ?User $user = null;
 
     const GENDER_MALE = 'Masculin';
