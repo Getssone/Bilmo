@@ -9,8 +9,40 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Validator\Constraints as Assert;
 use JMS\Serializer\Annotation\Groups;
+use Hateoas\Configuration\Annotation as Hateoas;
 
 #[ORM\Entity(repositoryClass: ClientsRepository::class)]
+/**
+ * @Hateoas\Relation(
+ *     name="self",
+ *     href=@Hateoas\Route(
+ *         "user_id",
+ *         parameters={"id": "expr(object.getUser().getId())"},
+ *         absolute=false
+ *     ),
+ *     exclusion = @Hateoas\Exclusion(groups={"getCustomers", "getArrayClient", "getClient"}, excludeIf = "expr(not is_granted('ROLE_ADMIN'))")
+ * )
+ * @Hateoas\Relation(
+ *     name="update",
+ *     href=@Hateoas\Route(
+ *         "update_user",
+ *         parameters={"id": "expr(object.getIdParent())"},
+ *         absolute=false
+ *     ),
+ *     exclusion = @Hateoas\Exclusion(groups={"getCustomers", "getArrayClient", "getClient"}, 
+ *     excludeIf = "expr(not is_granted('ROLE_ADMIN'))")
+ * )
+ * @Hateoas\Relation(
+ *     name="delete",
+ *     href=@Hateoas\Route(
+ *         "delete_user",
+ *         parameters={"id": "expr(object.getUser().getId())"},
+ *         absolute=false
+ *     ),
+ *     exclusion = @Hateoas\Exclusion(groups={"getCustomers", "getArrayClient", "getClient"},
+ *     excludeIf = "expr(not is_granted('ROLE_ADMIN'))")
+ * )
+ */
 class Client
 {
     #[ORM\Id]
@@ -166,5 +198,10 @@ class Client
         }
 
         return $this;
+    }
+    public function getIdParent(): int|null
+    {
+        $user = $this->getUser();
+        return $user ? $user->getId() : $this->getId();
     }
 }

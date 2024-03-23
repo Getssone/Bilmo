@@ -11,6 +11,7 @@ use JMS\Serializer\Annotation\Type;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Validator\Constraints as Assert;
+use Hateoas\Configuration\Annotation as Hateoas;
 
 #[ORM\Entity(repositoryClass: UserRepository::class)]
 #[UniqueEntity(
@@ -18,16 +19,18 @@ use Symfony\Component\Validator\Constraints as Assert;
     errorPath: 'email',
     message: 'un e-mail identique est déjà enregistrer en Base de Donnée'
 )]
+
+
 class User implements UserInterface, PasswordAuthenticatedUserInterface
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
-    #[Groups(["getUserProfil", "getClient", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
     private ?int $id = null;
 
     #[ORM\Column(name: 'email', type: 'string', length: 255, unique: true)]
-    #[Groups(["getUserProfil", "getClient", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
     #[Assert\NotBlank(message: "L'email est obligatoire", groups: ['registration'])]
     #[Assert\Email(message: "L'email n'est pas valide", groups: ['registration', 'updateProfile'])]
     private string $email;
@@ -51,12 +54,12 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private array $roles = [];
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(["getUserProfil", "getClient", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
     #[Assert\Length(max: 255, maxMessage: "L'adresse ne peut pas faire plus de {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     private ?string $address = null;
 
     #[ORM\Column(length: 255)]
-    #[Groups(["getUserProfil", "getClient", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
     #[Assert\NotBlank(message: "Le téléphone est obligatoire", groups: ['registration'])]
     #[Assert\Length(min: 10, minMessage: "Le téléphone doit faire au moins {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     #[Assert\Regex(pattern: "/^[0-9]+$/", message: "Le téléphone ne doit contenir que des chiffres", groups: ['registration', 'updateProfile'])]
@@ -64,22 +67,22 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
 
 
     #[ORM\Column(length: 255, nullable: true)]
-    #[Groups(["getUserProfil", "getClient", "getCustomers", "updateClient", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "getCustomers", "updateClient", "updateParticulier"])]
     #[Assert\Length(max: 255, maxMessage: "L'avatar ne peut pas faire plus de {{ limit }} caractères", groups: ['registration', 'updateProfile'])]
     private ?string $avatar = null;
 
     #[ORM\Column]
-    #[Groups(["getUserProfil", "getClient"])]
+    #[Groups(["getClient"])]
     #[Assert\Type(type: "bool", message: "La valeur de 'isVerified' doit être un booléen", groups: ['registration', 'updateProfile'])]
     private ?bool $isVerified = null;
 
     #[ORM\OneToOne(targetEntity: Client::class, cascade: ["persist", "remove"])]
-    #[Groups(["getUserProfil", "getClient", "updateClient"])]
+    #[Groups(["getUserProfil", "getClient", "createdUser", "updateClient"])]
     #[Assert\Valid(groups: ['registration', 'updateProfile'])]
     private ?Client $client = null;
 
     #[ORM\OneToOne(targetEntity: Particulier::class, cascade: ["persist", "remove"])]
-    #[Groups(["getUserProfil", "getCustomers", "updateParticulier"])]
+    #[Groups(["getUserProfil", "getCustomers", "createdUser", "updateParticulier"])]
     #[Assert\Valid(groups: ['registration', 'updateProfile'])]
     private ?Particulier $particulier = null;
 
@@ -275,5 +278,9 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
         $this->isVerified = $isVerified;
 
         return $this;
+    }
+    public function getIdParent(): int|null
+    {
+        return $this->getId();
     }
 }

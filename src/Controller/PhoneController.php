@@ -7,11 +7,13 @@ use App\Repository\PhoneRepository;
 use Doctrine\ORM\EntityNotFoundException;
 use JMS\Serializer\SerializationContext;
 use JMS\Serializer\SerializerBuilder;
+use JMS\Serializer\SerializerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Security\Http\Attribute\IsGranted;
 use Symfony\Contracts\Cache\ItemInterface;
 use Symfony\Contracts\Cache\TagAwareCacheInterface;
@@ -21,7 +23,7 @@ class PhoneController extends AbstractController
 
     #[Route('/api/phones', name: 'app_all_phones', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits suffisants pour voir la liste des téléphones')]
-    public function getAllUser(PhoneRepository $phones, Request $request, TagAwareCacheInterface $cache): JsonResponse
+    public function getAllUser(PhoneRepository $phones, Request $request, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
     {
 
         try {
@@ -29,13 +31,12 @@ class PhoneController extends AbstractController
             $limit = $request->get('limit', 3);
             $idCache = 'getAllPhone-' . $page . "-" . $limit;
 
-            $jsonPhonesList = $cache->get($idCache, function (ItemInterface $item) use ($phones, $page, $limit) {
-                $seralizer = SerializerBuilder::create()->build();
-                $context = SerializationContext::create()->setGroups('getPhones');
+            $jsonPhonesList = $cache->get($idCache, function (ItemInterface $item) use ($phones, $page, $limit, $serializer) {
+                $context = SerializationContext::create()->setGroups(['getPhones']);
                 echo ('nous enregistrons cette requête dans le cache');
                 $item->tag('allPhonesCache');
                 $phonesList = $phones->findAllWidthPagination($page, $limit);
-                return $seralizer->serialize($phonesList, 'json', $context);
+                return $serializer->serialize($phonesList, 'json', $context);
             });
 
 
@@ -49,21 +50,20 @@ class PhoneController extends AbstractController
             return new JsonResponse(['error' => "Une erreur lors de la récupération des données s'est produite."], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
-    #[Route('/api/phones/{id}', name: 'app_phone_id', methods: ['GET'])]
+    #[Route('/api/phones/{id}', name: 'app_phone_id', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits suffisants pour voir les détail d\'un téléphone')]
-    public function getThisUser(Phone $phone, TagAwareCacheInterface $cache): JsonResponse
+    public function getThisUser(Phone $phone, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
     {
         try {
             if ($phone) {
 
                 $idCache = 'getThisPhone-' . $phone->getId();
 
-                $jsonPhone = $cache->get($idCache, function (ItemInterface $item) use ($phone) {
-                    $seralizer = SerializerBuilder::create()->build();
-                    $context = SerializationContext::create()->setGroups('getPhones');
+                $jsonPhone = $cache->get($idCache, function (ItemInterface $item) use ($phone, $serializer) {
+                    $context = SerializationContext::create()->setGroups(['getPhones']);
                     echo ('nous enregistrons cette requête dans le cache');
                     $item->tag('IdPhoneCache');
-                    return  $seralizer->serialize($phone, 'json', $context);
+                    return $serializer->serialize($phone, 'json', $context);
                 });
 
 

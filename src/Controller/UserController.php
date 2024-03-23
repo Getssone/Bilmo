@@ -12,9 +12,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use JMS\Serializer\SerializationContext;
-use JMS\Serializer\SerializerBuilder;
 use JMS\Serializer\SerializerInterface;
+use JMS\Serializer\SerializationContext;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -36,7 +35,7 @@ class UserController extends AbstractController
 
     #[Route('/api/users', name: 'all_user', methods: ['GET'])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits suffisants pour voir les users')]
-    public function getAllUser(UserRepository $users, Request $request, TagAwareCacheInterface $cache): JsonResponse
+    public function getAllUser(UserRepository $users, Request $request, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
     {
 
         try {
@@ -44,9 +43,8 @@ class UserController extends AbstractController
             $limit = $request->get('limit', 3);
             $idCache = 'getAllUsers-' . $page . "-" . $limit;
 
-            $jsonUsersList = $cache->get($idCache, function (ItemInterface $item) use ($users, $page, $limit) {
-                $serializer = SerializerBuilder::create()->build();
-                $context = SerializationContext::create()->setGroups(['getCustomers', 'getClient']);
+            $jsonUsersList = $cache->get($idCache, function (ItemInterface $item) use ($users, $page, $limit, $serializer) {
+                $context = SerializationContext::create()->setGroups(['getCustomers', 'getClient', 'getUserCustomerID']);
                 echo ('nous enregistrons cette requête dans le cache');
                 $item->tag('allUsersCache');
                 $usersList = $users->findAllWidthPagination($page, $limit);
@@ -72,7 +70,7 @@ class UserController extends AbstractController
     public function createUser(Request $request, UserPasswordHasherInterface $userPasswordHasher, ValidatorInterface $validator, SerializerInterface $serializer, EntityManagerInterface $em, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache): JsonResponse
     {
         try {
-            $context = SerializationContext::create()->setGroups(['getCustomers', 'getClient']);
+            $context = SerializationContext::create()->setGroups(['createdUser']);
             $newUser = $request->getContent();
             $userDataForVérificationUser = $serializer->deserialize($newUser, User::class, 'json');
             $userDataForVérificationParticulier = $serializer->deserialize($newUser, Particulier::class, 'json');
@@ -108,13 +106,13 @@ class UserController extends AbstractController
                     return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
                 }
             }
-            $cache->invalidateTags(['allUsersCache', 'userAllParticulierCache', 'IdUserCache', 'IdUserParticulierCache']);
             $em->persist($createdUser);
             $em->flush($createdUser);
+            $cache->invalidateTags(['allUsersCache', 'userAllParticulierCache', 'IdUserCache', 'IdUserParticulierCache']);
 
             $createdUserJson = $serializer->serialize($createdUser, 'json', $context);
 
-            $location = $urlGenerator->generate('user_id', ['id' => $createdUser->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
+            $location = $urlGenerator->generate('user_my-customer', ['id' => $createdUser->getParticulier()->getClient()->getUser()->getId(), 'particulier_id' => $createdUser->getParticulier()->getID()], UrlGeneratorInterface::ABSOLUTE_URL);
             return new JsonResponse(
                 $createdUserJson,
                 Response::HTTP_CREATED,
@@ -128,15 +126,14 @@ class UserController extends AbstractController
 
     #[Route('/api/users/{id}', name: 'user_id', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour voir le détail d\'un utilisateur')]
-    public function getThisUser(User $user, TagAwareCacheInterface $cache): JsonResponse
+    public function getThisUser(User $user, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
     {
         try {
             $currentUser = $this->security->getUser();
             if ($currentUser === $user) {
                 $idCache = 'getThisUser-' . $user->getId();
 
-                $jsonUser = $cache->get($idCache, function (ItemInterface $item) use ($user) {
-                    $serializer = SerializerBuilder::create()->build();
+                $jsonUser = $cache->get($idCache, function (ItemInterface $item) use ($user, $serializer) {
                     $context = SerializationContext::create()->setGroups(["getClient", "getArrayClient", 'getCustomers']);
                     echo ('nous enregistrons cette requête dans le cache');
                     $item->tag('IdUserCache');
@@ -177,6 +174,54 @@ class UserController extends AbstractController
         try {
             $currentAdminUser = $this->security->getUser();
             if ($currentAdminUser instanceof User) {
+
+
+                if ($currentAdminUser->getId() === $currentUser->getId()) {
+
+                    $editUserRequest = $request->getContent();
+
+                    $editUserDataForVérificationUser = $serializer->deserialize($editUserRequest, User::class, 'json');
+                    $editUserDataForVérificationClient = $serializer->deserialize($editUserRequest, Client::class, 'json');
+
+                    $errorsUser = $validator->validate($editUserDataForVérificationUser, null,  ['updateProfile']);
+                    if ($errorsUser->count() > 0) {
+                        return new JsonResponse($serializer->serialize($errorsUser, 'json'), JsonResponse::HTTP_BAD_REQUEST, [], true);
+                    }
+                    if ($currentUser->getRoles()[0] === "ROLE_ADMIN") {
+                        $errorsClient = $validator->validate($editUserDataForVérificationClient, null,  ['updateProfile']);
+                        if ($errorsClient->count() > 0) {
+                            return new JsonResponse($serializer->serialize($errorsClient, 'json'), JsonResponse::HTTP_BAD_REQUEST, [], true);
+                        }
+                    }
+
+                    $updateInfoUser = $request->toArray(); // ou  json_decode($request->getContent(), true);
+                    foreach ($updateInfoUser as $key => $value) {
+                        $setter = 'set' . ucfirst($key);
+                        if (method_exists(User::class, $setter)) {
+                            $currentUser->$setter($value);
+                        } elseif (in_array('ROLE_ADMIN', $currentUser->getRoles())) {
+                            if (method_exists(Client::class, $setter)) {
+                                $currentUser->getClient()->$setter($value);
+                            }
+                        }
+                    }
+                    $cache->invalidateTags(['allUsersCache', 'userAllParticulierCache', 'IdUserCache', 'IdUserParticulierCache']);
+                    $em->persist($currentUser);
+                    $em->flush();
+
+                    $context = SerializationContext::create()->setGroups(['updateClient', 'updateParticulier']);
+
+
+                    $updatedUserJson = $serializer->serialize($currentUser, 'json', $context);
+
+                    $location = $urlGenerator->generate('user_id', ['id' => $currentUser->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
+                    return new JsonResponse(
+                        $updatedUserJson,
+                        Response::HTTP_OK,
+                        ['location' => $location],
+                        true
+                    );
+                }
                 $client = $currentAdminUser->getClient();
                 if (!$client) {
                     return new JsonResponse(["error" => "L'utilisateur n'a pas de compte client associé."], Response::HTTP_BAD_REQUEST);
@@ -249,7 +294,7 @@ class UserController extends AbstractController
         }
     }
 
-    #[Route('/api/users/{id}/delete', name: 'delete_user', methods: ['DELETE'], requirements: ['id' => Requirement::DIGITS])]
+    #[Route('/api/users/{id}', name: 'delete_user', methods: ['DELETE'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour supprimer un utilisateur')]
     public function deleteUser(User $user, EntityManagerInterface $em, TagAwareCacheInterface $cache): JsonResponse
     {
@@ -265,6 +310,7 @@ class UserController extends AbstractController
                     Response::HTTP_NO_CONTENT
                 );
             }
+            dd('je suis');
             return new JsonResponse(["error" => "Aucun utilisateur n'à était trouver."], Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
             return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
@@ -273,16 +319,15 @@ class UserController extends AbstractController
 
     #[Route('/api/users/{id}/Profil', name: 'user_id_profil', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour mettre à jour cette utilisateur')]
-    public function getThisUserProfil(User $user, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache): JsonResponse
+    public function getThisUserProfil(User $user, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
     {
         try {
             $currentUser = $this->security->getUser();
             if ($currentUser === $user) {
                 $idCache = 'getThisUserProfil-' . $user->getId();
 
-                $jsonUserProfil = $cache->get($idCache, function (ItemInterface $item) use ($user) {
-                    $serializer = SerializerBuilder::create()->build();
-                    $context = SerializationContext::create()->setGroups(["getUserProfil", 'getClient', 'getCustomers']);
+                $jsonUserProfil = $cache->get($idCache, function (ItemInterface $item) use ($user, $serializer) {
+                    $context = SerializationContext::create()->setGroups(["getUserProfil", 'getClient']);
                     echo ('nous enregistrons cette requête dans le cache');
                     $item->tag('IdUserProfilCache');
 
@@ -305,15 +350,14 @@ class UserController extends AbstractController
 
     #[Route('/api/users/{id}/my-customers', name: 'user_my-customers', methods: ['GET'], requirements: ['id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour voir les client de cette utilisateur')]
-    public function getMyCustomers(User $user, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache): JsonResponse
+    public function getMyCustomers(User $user, UrlGeneratorInterface $urlGenerator, TagAwareCacheInterface $cache, SerializerInterface $serializer): JsonResponse
     {
         try {
             $currentUser = $this->security->getUser();
             if ($currentUser === $user) {
                 $idCache = 'getThisUserAllParticulier-' . $user->getId();
 
-                $jsonAllParticulier = $cache->get($idCache, function (ItemInterface $item) use ($user, $urlGenerator) {
-                    $serializer = SerializerBuilder::create()->build();
+                $jsonAllParticulier = $cache->get($idCache, function (ItemInterface $item) use ($user, $urlGenerator, $serializer) {
                     $context = SerializationContext::create()->setGroups(['getCustomers']);
                     echo ('nous enregistrons cette requête dans le cache');
                     $item->tag('userAllParticulierCache');
@@ -357,7 +401,8 @@ class UserController extends AbstractController
         #[MapEntity(id: 'particulier_id')]
         Particulier $particulier,
         UrlGeneratorInterface $urlGenerator,
-        TagAwareCacheInterface $cache
+        TagAwareCacheInterface $cache,
+        SerializerInterface $serializer
     ): JsonResponse {
         try {
             $currentUser = $this->security->getUser();
@@ -368,20 +413,22 @@ class UserController extends AbstractController
                 }
                 // Récupération de la liste des particuliers du client
                 $particuliersList = $client->getClientsParticulier();
+                try {
+                    if ($particuliersList->contains($particulier)) {
+                        $idCache = 'getThisUserParticulier-' . $particulier->getId();
 
-                if ($particuliersList->contains($particulier)) {
-                    $idCache = 'getThisUserParticulier-' . $particulier->getId();
+                        $jsonParticulier = $cache->get($idCache, function (ItemInterface $item) use ($particulier, $serializer) {
+                            $context = SerializationContext::create()->setGroups(['getCustomers']);
+                            echo ('nous enregistrons cette requête dans le cache');
+                            $item->tag('IdUserParticulierCache');
 
-                    $jsonParticulier = $cache->get($idCache, function (ItemInterface $item) use ($particulier) {
-                        $serializer = SerializerBuilder::create()->build();
-                        $context = SerializationContext::create()->setGroups(['getCustomers']);
-                        echo ('nous enregistrons cette requête dans le cache');
-                        $item->tag('IdUserParticulierCache');
-
-                        return $serializer->serialize($particulier, 'json', $context);
-                    });
-                    $location = $urlGenerator->generate('delete_user_my-customer', ['id' => $user->getId(), 'particulier_id' => $particulier->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
-                    return new JsonResponse($jsonParticulier, Response::HTTP_OK, ["location" => $location], true);
+                            return $serializer->serialize($particulier, 'json', $context);
+                        });
+                        $location = $urlGenerator->generate('delete_user_my-customer', ['id' => $user->getId(), 'particulier_id' => $particulier->getId()], UrlGeneratorInterface::ABSOLUTE_URL);
+                        return new JsonResponse($jsonParticulier, Response::HTTP_OK, ["location" => $location], true);
+                    }
+                } catch (\Exception $e) {
+                    return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
                 }
             }
             return new JsonResponse(["error" => "cette utilisateur n'est pas dans la liste de vos client Particulier."], Response::HTTP_FORBIDDEN);
@@ -391,7 +438,7 @@ class UserController extends AbstractController
     }
 
 
-    #[Route('/api/users/{id}/my-customers/{particulier_id}/delete', name: 'delete_user_my-customer', methods: ['DELETE'], requirements: ['id' => Requirement::DIGITS, 'particulier_id' => Requirement::DIGITS])]
+    #[Route('/api/users/{id}/my-customers/{particulier_id}', name: 'delete_user_my-customer', methods: ['DELETE'], requirements: ['id' => Requirement::DIGITS, 'particulier_id' => Requirement::DIGITS])]
     #[IsGranted('ROLE_ADMIN', message: 'Vous n\'avez pas les droits pour supprimer le client de cette utilisateur')]
     public function deleteThisCustomer(
         User $user,
