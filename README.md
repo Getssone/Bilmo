@@ -106,9 +106,29 @@ php bin/console doctrine:fixtures:load
 
 Generate token for authentication :
 
-```
-php bin/console lexik:jwt:generate-keypair
-```
+1.  Go to config folder
+
+    - Creates a JWT folder
+
+1.  Create a Private key with :
+
+    - the command :
+
+      `openssl genpkey -out config/jwt/private.pem -aes256 -algorithm RSA -pkeyopt rsa_keygen_bits:4096`
+
+    - Add the key
+
+      example : `password`
+
+1.  Create a Public key with :
+
+    - the command :
+
+      `openssl pkey -in config/jwt/private.pem -out config/jwt/public.pem -pubout`
+
+    - Add the key
+
+      example : `password`
 
 ## Import database files
 
@@ -118,6 +138,7 @@ Once the mamp is launched, go to <http://localhost/bilemo/> on your browser. You
 
 Then, go on your favorite browser, try the doc :
 
+![alt text](image-1.png)
 <http://127.0.0.1:8000/api/doc>
 
 ## Try on Postman

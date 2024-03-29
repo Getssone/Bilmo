@@ -422,7 +422,6 @@ class UserController extends AbstractController
                     Response::HTTP_NO_CONTENT
                 );
             }
-            dd('je suis');
             return new JsonResponse(["error" => "Aucun utilisateur n'à était trouver."], Response::HTTP_NOT_FOUND);
         } catch (\Exception $e) {
             return new JsonResponse(['shortError' => "Une erreur lors de la récupération des données s'est produite.", 'longError' => "$e"], Response::HTTP_INTERNAL_SERVER_ERROR);
