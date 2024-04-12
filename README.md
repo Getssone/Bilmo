@@ -130,6 +130,30 @@ Generate token for authentication :
 
       example : `password`
 
+1.  Go to config folder
+
+    - Creates a JWT folder
+
+1.  Create a Private key with :
+
+    - the command :
+
+      `openssl genpkey -out config/jwt/private.pem -aes256 -algorithm RSA -pkeyopt rsa_keygen_bits:4096`
+
+    - Add the key
+
+      example : `password`
+
+1.  Create a Public key with :
+
+    - the command :
+
+      `openssl pkey -in config/jwt/private.pem -out config/jwt/public.pem -pubout`
+
+    - Add the key
+
+      example : `password`
+
 ## Import database files
 
 Once the mamp is launched, go to <http://localhost/bilemo/> on your browser. You need to import my BDD :"localhost.sql" file into your BDD.
