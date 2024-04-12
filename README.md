@@ -106,6 +106,10 @@ php bin/console doctrine:fixtures:load
 
 Generate token for authentication :
 
+```
+php bin/console lexik:jwt:generate-keypair
+```
+
 1.  Go to config folder
 
     - Creates a JWT folder
